@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useEffect, useState, useMemo } from 'react';
 import useWebSocket from '../../hooks/useWebSocket';
 import useAgents from '../../hooks/useAgents';
@@ -130,3 +132,4 @@ export default function AdminPage() {
     </div>
   );
 }
+
