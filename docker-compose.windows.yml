@@ -1,0 +1,172 @@
+version: '3.9'
+
+services:
+  # -------------------------------------------------------------------------
+  # Frontend Builder
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: almaa_frontend
+    restart: "no"
+    command: >-
+      sh -c "rm -rf /output/* && cp -r /out/* /output/"
+    volumes:
+      - ./frontend/out:/output
+    networks:
+      - internal
+
+  # -------------------------------------------------------------------------
+  # Reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: almaa_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx.windows.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+      - ./frontend/out:/usr/share/nginx/html:ro 
+    depends_on:
+      - api
+      - frontend
+    networks:
+      - internal
+
+  # -------------------------------------------------------------------------
+  # API backend
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: almaa_api
+    restart: unless-stopped
+    env_file:
+      - .env.windows
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      chroma:
+        condition: service_started
+      minio:
+        condition: service_started
+    networks:
+      - internal
+    ports:
+      - "8000:8000"
+
+  # -------------------------------------------------------------------------
+  # Message queue and cache
+  redis:
+    image: redis:7-alpine
+    container_name: almaa_redis
+    restart: unless-stopped
+    command: ["redis-server"]
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  # -------------------------------------------------------------------------
+  # SQL database
+  postgres:
+    image: postgres:16-alpine
+    container_name: almaa_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: ${TZ}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  # -------------------------------------------------------------------------
+  # Vector storage
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: almaa_chroma
+    restart: unless-stopped
+    volumes:
+      - ./data/chroma:/chroma
+    environment:
+      CHROMA_DB_IMPL: "duckdb"
+    networks:
+      - internal
+
+  # -------------------------------------------------------------------------
+  # Object storage
+  minio:
+    image: minio/minio:latest
+    container_name: almaa_minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9001"
+    volumes:
+      - ./data/minio:/data
+    networks:
+      - internal
+
+  # -------------------------------------------------------------------------
+  # Monitoring – Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: almaa_prometheus
+    restart: unless-stopped
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./data/prometheus:/prometheus
+    networks:
+      - internal
+
+  # -------------------------------------------------------------------------
+  # Monitoring – Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: almaa_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+    volumes:
+      - ./data/grafana:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - internal
+
+  # -------------------------------------------------------------------------
+  # Logging – Loki
+  loki:
+    image: grafana/loki:latest
+    container_name: almaa_loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - internal
+
+
+
+networks:
+  internal:
+    driver: bridge

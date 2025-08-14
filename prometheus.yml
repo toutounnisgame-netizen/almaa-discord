@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Prometheus scraping its own metrics
+  - job_name: prometheus
+    static_configs:
+      - targets: ["prometheus:9090"]
+
+  # Placeholder scrape job for the API.  In Phase 2 the FastAPI app
+  # should expose metrics on /metrics using a library such as
+  # prometheus‑fastapi‑instrumentator.  Uncomment the following lines
+  # when metrics are available.
+  #- job_name: api
+  #  static_configs:
+  #    - targets: ["api:${API_PORT}"]
+
+  # Additional jobs for Redis, Postgres or other services can be
+  # configured here once exporters are installed.  See the
+  # documentation in docs/INSTALLATION‑WINDOWS.md for details.
