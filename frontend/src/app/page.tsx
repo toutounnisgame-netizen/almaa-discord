@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import useWebSocket from '../hooks/useWebSocket';
 import useAgents from '../hooks/useAgents';
@@ -94,3 +96,4 @@ export default function Page() {
     </div>
   );
 }
+
