@@ -13,9 +13,10 @@ COPY src ./src
 RUN npm install --omit=dev
 
 # Construire et exporter le site statique
-RUN npm run build && npm run export
+RUN npm run build
 
 # Étape finale : exposer uniquement le dossier /out
 FROM alpine AS export
 WORKDIR /out
 COPY --from=build /app/out ./
+
