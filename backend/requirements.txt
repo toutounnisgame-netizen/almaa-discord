@@ -1,0 +1,16 @@
+
+# Placeholder for backend dependencies.
+# Phase 2 will populate this file with FastAPI, Redis, Postgres drivers,
+# ChromaDB client, CrewAI and other libraries.  Keep this file to
+# facilitate offline packaging via `pip download -r requirements.txt`.
+fastapi
+uvicorn[standard]
+redis
+psycopg[binary]
+chromadb
+minio
+python-dotenv
+prometheus-fastapi-instrumentator
+crewAI
+httpx
+sentence-transformers

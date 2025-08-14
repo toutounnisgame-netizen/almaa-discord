@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-darker text-white;
+  /* Préférence pour Whitney, avec fallback Helvetica/Arial */
+  font-family: Whitney, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+/* Style de la scrollbar pour le thème sombre */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-dark;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-primary rounded;
+}
