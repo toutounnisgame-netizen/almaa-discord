@@ -1,0 +1,7 @@
+# Poids des facteurs de pertinence (placé ici à des fins d’exemple)
+expertise_match: 0.3
+conversation_gap: 0.25
+workload_capacity: 0.2
+recent_participation: 0.15
+relationship_trust: 0.05
+timing_appropriateness: 0.05
