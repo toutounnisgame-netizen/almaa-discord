@@ -100,20 +100,35 @@ class BaseAgent:
             # Append to history
             self.history.append({"role": "user", "content": content})
             await self._persist_message(message)
-            # Decide whether to respond; simple probability or always respond
-            # Here we respond to every message not sent by us
+            # Avant de générer une réponse, interroger le moteur de pertinence
+            intervene = True
             try:
-                response_text = await self._generate_response()
-            except Exception as exc:
-                response_text = f"[Error generating response: {exc}]"
-            response = {
-                "sender": self.name,
-                "content": response_text,
-                "timestamp": dt.datetime.utcnow().isoformat(),
-            }
-            await self.bus.publish(response)
-            self.history.append({"role": "assistant", "content": response_text})
-            await self._persist_message(response)
+                # Importation différée pour éviter des dépendances manquantes
+                from relevance_engine.core.relevance_calculator import RelevanceCalculator
+                from relevance_engine.core.context_analyzer import ConversationContext
+
+                calculator = RelevanceCalculator()
+                # Contexte simplifié : canal fictif "default" et historique actuel
+                context = ConversationContext.from_history("default", self.history)
+                score = await calculator.calculate_score(self.name, context, message)
+                intervene = score.decision == "intervene"
+            except Exception:
+                # En cas d’erreur, on intervient pour ne pas bloquer la conversation
+                intervene = True
+
+            if intervene:
+                try:
+                    response_text = await self._generate_response()
+                except Exception as exc:
+                    response_text = f"[Error generating response: {exc}]"
+                response = {
+                    "sender": self.name,
+                    "content": response_text,
+                    "timestamp": dt.datetime.utcnow().isoformat(),
+                }
+                await self.bus.publish(response)
+                self.history.append({"role": "assistant", "content": response_text})
+                await self._persist_message(response)
 
     async def _generate_response(self) -> str:
         """
