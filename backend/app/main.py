@@ -24,6 +24,19 @@ from .agents.message_bus import MessageBus
 from .agents.factory import create_default_agents
 from .agents.debate_manager import DebateManager
 
+# Import relevance-engine router and websocket handler.  This import
+# assumes that the package ``relevance_engine`` is available in the
+# Python path (the Dockerfile and PYTHONPATH should ensure this).  If
+# the import fails, it will silently skip the relevance endpoints.
+try:
+    from relevance_engine.api.relevance_endpoints import router as relevance_router
+    from relevance_engine.api.websocket_handlers import relevance_websocket
+    HAVE_RELEVANCE = True
+except Exception:
+    relevance_router = None  # type: ignore
+    relevance_websocket = None  # type: ignore
+    HAVE_RELEVANCE = False
+
 
 app = FastAPI(title="ALMAA Discord IA Backend", version="0.2.0")
 router = APIRouter()
@@ -135,3 +148,13 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
 
 app.include_router(router, prefix="/api")
+
+# Mount relevance endpoints if available
+if HAVE_RELEVANCE and relevance_router is not None:
+    app.include_router(relevance_router, prefix="/api/v1/relevance", tags=["relevance"])
+
+# Add WebSocket endpoint for relevance streaming
+if HAVE_RELEVANCE and relevance_websocket is not None:
+    @app.websocket("/ws/relevance/{agent_id}")
+    async def relevance_ws(ws: WebSocket, agent_id: str) -> None:
+        await relevance_websocket(ws, agent_id)
